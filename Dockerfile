@@ -1,18 +1,39 @@
-# Usa a imagem oficial do Node.js
-FROM node:18-alpine
+version: '3.8'
 
-# Define o diretório de trabalho dentro do contêiner
-WORKDIR /usr/src/app
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: meu_postgres_homolog
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: senha_super_secreta
+      POSTGRES_DB: banco_teste
+    volumes:
+      - pg_dados_homolog:/var/lib/postgresql/data
+    networks:
+      - app-network
 
-# Copia os arquivos de dependência e instala
-COPY package*.json ./
-RUN npm install
+  app:
+    # Consome a imagem do GHCR e a tag dinâmica gerada no .env pelo pipeline
+    image: ${REGISTRY_IMAGE:-ghcr.io/usuario/minha-api-node}:${IMAGE_TAG:-latest}
+    container_name: minha_api_node_homolog
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_USER: admin
+      DB_PASSWORD: senha_super_secreta
+      DB_NAME: banco_teste
+    depends_on:
+      - db
+    networks:
+      - app-network
 
-# Copia o restante do código
-COPY . .
+volumes:
+  pg_dados_homolog:
 
-# Expõe a porta que a aplicação vai usar
-EXPOSE 8080
-
-# Comando para iniciar a aplicação
-CMD ["node", "server.js"]
+networks:
+  app-network:
+    driver: bridge
